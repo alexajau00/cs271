@@ -233,3 +233,68 @@ void parse_C_instruction(char *line, c_instruction *instr){
 	instr->a = a_bit ? 1 : 0;
 	instr->dest = str_to_destid(destination_inst);
 }
+
+
+opcode instruction_to_opcode(c_instruction instr){
+	opcode op = 0;
+	op |= (7 << 13);
+	op |= (instr.a & 1) <<12;
+	op |= (instr.comp & 63) <<6;
+	op |= (instr.dest & 7) <<3;
+	op |= (instr.jump & 7) <<0;
+	return op;
+}
+
+
+void assemble(const char * file_name, instruction* instructions, int num_instructions){
+	if(file_name == NULL || instructions == NULL || num_instructions <= 0){
+		return;
+	}
+	size_t len = strlen(file_name);
+	char *out_name = malloc(len + 6);
+
+	sprintf(out_name, "%s.hack", file_name);
+
+	FILE *file = fopen(out_name, "w");
+	hack_addr next_var_addr = 16;
+	free(out_name);
+
+	for(int i = 0; i < num_instructions; i++) {
+		instruction *instr = &instructions[i];
+		opcode op = 0;
+		if (instr->itype == Atype){
+			a_instruction *a = &instr->instr.a;
+			hack_addr addr;
+			if(!a->is_addr){
+				char *symbol = a->label;
+				Symbol *item = symtable_find(symbol);
+				if(item !=NULL){
+					addr = item->addr;
+				} else {
+					addr = next_var_addr++;
+					symtable_insert(symbol, addr);
+				}
+
+				a->address = addr;
+				a->is_addr = true;
+				free(symbol);
+				a->label = NULL;
+			} else {
+				addr = a->address;
+			}
+			op = (opcode)(addr &0x7FFF);
+		} else if(instr->itype == Ctype){
+			op = instruction_to_opcode(instr->instr.c);
+
+		} else{
+			continue;
+		}
+		if(i < num_instructions - 1){
+			fprintf(file, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c\n", OPCODE_TO_BINARY(op));
+		}else {
+			fprintf(file, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", OPCODE_TO_BINARY(op));
+		}
+	}
+	fclose(file);
+
+}

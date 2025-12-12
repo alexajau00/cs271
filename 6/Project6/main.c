@@ -22,6 +22,7 @@ int main(int argc, const char *argv[]){
 	}	
 	int num_instructions = parse(fin, instructions);
 	fclose(fin);
+	assemble(argv[1], instructions, num_instructions);
 	free(instructions);	
 }
 
